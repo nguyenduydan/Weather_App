@@ -9,6 +9,7 @@ const Weather = () => {
     const [weatherData, setWeatherData] = useState(false);
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState("");
+    const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
 
     const allIcons = {
         "01d": Assest.Images.clear_icon,
@@ -34,7 +35,7 @@ const Weather = () => {
             return;
         }
         try {
-            const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&APPID=${import.meta.env.VITE_APP_ID}`;
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&APPID=${apiKey}`;
 
             const response = await fetch(url);
             const data = await response.json();
