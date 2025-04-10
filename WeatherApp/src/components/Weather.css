@@ -75,3 +75,31 @@
     width: 26px;
     margin-top: 10px;
 }
+
+.suggestions-container{
+    width: 100%;
+
+}
+
+
+.suggestions {
+    background: transparent;
+    border: 1px solid #ccc;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+    z-index: 99;
+    margin-top: 4px;
+    padding-left: 0;
+    list-style: none;
+    border-radius: 10px;
+}
+
+.suggestions li {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.suggestions li:hover {
+    background-color: #00000075;
+}
