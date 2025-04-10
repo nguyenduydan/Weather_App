@@ -9,7 +9,7 @@ function Alert({ onClose, message }) {
     useEffect(() => {
         const timeout = setTimeout(() => {
             handleClose();
-        }, 300000);
+        }, 3000);
         return () => clearTimeout(timeout);
     }, []);
 
