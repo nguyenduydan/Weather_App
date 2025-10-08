@@ -1,16 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
-import "./Weather.css";
-import Assest from '../assets/assest';
-import Alert from './Alert';
-import cityList from '../data/city.list.json';
+import { useEffect, useRef, useState } from "react";
+import cityList from "../data/city.list.json";
+import { Loader2 } from 'lucide-react';
+import SearchBar from "./SearchBar";
+import Alert from "./Alert";
+import WeatherIcon from "./WeatherIcon";
+import LocationDisplay from "./LocationDisplay";
+import WeatherStats from "./WeatherStats";
+import Assest from "../assets/assest.js";
+
 
 const Weather = () => {
     const inputRef = useRef();
-    const [weatherData, setWeatherData] = useState(false);
+    const [weatherData, setWeatherData] = useState(null);
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState("");
-    const [countries, setCountries] = useState([]);
     const [suggestions, setSuggestions] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
 
     const allIcons = {
@@ -36,9 +42,13 @@ const Weather = () => {
             setAlertMessage("Please enter a city name");
             return;
         }
+
         if (city.includes(",")) {
-            city = city.split(",")[0].trim(); // chỉ lấy phần tên thành phố
+            city = city.split(",")[0].trim();
         }
+
+        setLoading(true);
+
         try {
             const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&APPID=${apiKey}`;
             const response = await fetch(url);
@@ -46,56 +56,54 @@ const Weather = () => {
 
             if (!response.ok) {
                 setShowAlert(true);
-                setAlertMessage(data.message);
+                setAlertMessage(data.message || "City not found");
+                setLoading(false);
                 return;
             }
 
-            const icon = allIcons[data.weather[0].icon] || Assest.Images.clear_icon;
+            const icon = allIcons[data.weather[0].icon];
             setWeatherData({
                 humidity: data.main.humidity,
-                windspeed: data.wind.speed,
+                windspeed: Math.round(data.wind.speed * 3.6), // m/s to km/h
                 temperature: Math.floor(data.main.temp),
                 location: data.name,
                 icon: icon
             });
 
             setSuggestions([]);
+            setLoading(false);
         } catch (error) {
-            setWeatherData(false);
+            setWeatherData(null);
             setShowAlert(true);
-            setAlertMessage("Error fetching data");
+            setAlertMessage("Error fetching weather data: ", error);
+            setLoading(false);
         }
     };
 
     useEffect(() => {
-        search("hanoi");
+        search("Hanoi");
 
-        // Ctrl+K để focus input
         const handleShortcut = (e) => {
             if (e.ctrlKey && e.key.toLowerCase() === "k") {
                 e.preventDefault();
-                inputRef.current.focus();
+                inputRef.current?.focus();
             }
         };
+
         window.addEventListener("keydown", handleShortcut);
         return () => window.removeEventListener("keydown", handleShortcut);
     }, []);
 
-    // Lấy danh sách quốc gia từ API
-    useEffect(() => {
-        fetch("https://restcountries.com/v3.1/all")
-            .then(res => res.json())
-            .then(data => {
-                const countryNames = data.map(c => c.name.common).sort();
-                setCountries(countryNames);
-            });
-    }, []);
-
     const handleInput = (e) => {
         const value = e.target.value.toLowerCase();
+        if (value === "") {
+            setSuggestions([]);
+            return;
+        }
+
         const filtered = cityList
             .filter(city => city.name.toLowerCase().startsWith(value))
-            .slice(0, 5) // chỉ lấy 5 gợi ý
+            .slice(0, 5)
             .map(city => `${city.name}, ${city.country}`);
         setSuggestions(filtered);
     };
@@ -106,62 +114,59 @@ const Weather = () => {
         }
     };
 
+    const handleSelectSuggestion = (suggestion) => {
+        inputRef.current.value = suggestion;
+        search(suggestion);
+    };
+
     return (
-        <div className='weather'>
+        <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
             {showAlert && <Alert message={alertMessage} onClose={() => setShowAlert(false)} />}
 
-            <div className='flex flex-col items-center justify-between'>
-                <div className='search-bar'>
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        placeholder='Search...'
-                        onChange={handleInput}
+            <div className="w-full max-w-2xl">
+                <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20">
+                    <h1 className="text-4xl font-bold text-white text-center mb-8">Weather App</h1>
+
+                    <SearchBar
+                        inputRef={inputRef}
+                        onSearch={() => search(inputRef.current.value)}
+                        onInput={handleInput}
                         onKeyDown={handleKeyDown}
+                        suggestions={suggestions}
+                        onSelectSuggestion={handleSelectSuggestion}
                     />
-                    <img
-                        src={Assest.Images.search_icon}
-                        alt='search'
-                        onClick={() => search(inputRef.current.value)}
-                    />
+
+                    <div className="text-center text-white/60 text-sm mt-2 mb-6">
+                        Press <kbd className="px-2 py-1 bg-white/20 rounded">Ctrl + K</kbd> to search
+                    </div>
+
+                    {loading && !weatherData ? (
+                        <div className="flex justify-center items-center py-20">
+                            <Loader2 className="w-12 h-12 text-white animate-spin" />
+                        </div>
+                    ) : weatherData ? (
+                        <>
+                            <WeatherIcon icon={weatherData.icon} temp={weatherData.temperature} />
+                            <LocationDisplay location={weatherData.location} />
+                            <WeatherStats humidity={weatherData.humidity} windspeed={weatherData.windspeed} />
+                        </>
+                    ) : null}
                 </div>
-                <div className='suggestions-container'>
-                    {suggestions.length > 0 && (
-                        <ul className='suggestions'>
-                            {suggestions.map((country, idx) => (
-                                <li key={idx} onClick={() => {
-                                    inputRef.current.value = country;
-                                    search(country);
-                                }}>{country}</li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
+
+                <p className="text-center text-white/80 text-sm mt-6">
+                    Powered by OpenWeatherMap API
+                </p>
             </div>
 
-            {weatherData && (
-                <>
-                    <img src={weatherData.icon} alt="" className='weather-icon' />
-                    <p className='temperature'>{weatherData.temperature}°C</p>
-                    <p className='location'>{weatherData.location}</p>
-                    <div className='weather-data'>
-                        <div className='col'>
-                            <img src={Assest.Images.humidity_icon} alt="" />
-                            <div className='humidity'>
-                                <p>{weatherData.humidity} %</p>
-                                <span>Humidity</span>
-                            </div>
-                        </div>
-                        <div className='col'>
-                            <img src={Assest.Images.wind_icon} alt="" />
-                            <div className='wind'>
-                                <p>{weatherData.windspeed} Km/h</p>
-                                <span>Wind Speed</span>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
+            <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+      `}</style>
         </div>
     );
 };
